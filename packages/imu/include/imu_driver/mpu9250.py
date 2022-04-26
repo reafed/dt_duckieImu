@@ -1,13 +1,13 @@
 from __future__ import print_function
 from __future__ import division
 
-# try:
-# 	import smbus2 as smbus
-# except ImportError:
-# 	print('WARNING: Using fake hardware')
-# 	from .fakeHW import smbus
-# 	# from fake_rpi import smbus
-import smbus as smbus
+#try:
+#	import smbus2 as smbus
+#except ImportError:
+#	print('WARNING: Using fake hardware')
+#	from .fakeHW import smbus
+	#from fake_rpi import smbus
+import smbus #as smbus
 
 from time import sleep
 import struct
