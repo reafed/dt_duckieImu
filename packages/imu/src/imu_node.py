@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import math
 import time
+from ahrs.filter import Madgwick
+import numpy as np
 
 import rospy
 from duckietown.dtros import DTROS, NodeType, TopicType, DTParam, ParamType
 from imu_driver import mpu9250
 from sensor_msgs.msg import Imu
-from geometry_msgs.msg import Vector3
+from geometry_msgs.msg import Vector3, Quaternion
 
 # TODO: calibration and loading custom config
 
@@ -48,6 +50,8 @@ class IMUNode(DTROS):
             _ = self._imu.accel
             _ = self._imu.gyro
             self.loginfo(trial_msg("Found IMU"))
+            self.Q = np.array([1.0, 0.0, 0.0, 0.0])
+            self.madgwick = Madgwick()
         except IOError:
             self.logerr(trial_msg("IMU sensor not correctly detected"))
             raise IMUNotFound()
@@ -75,6 +79,14 @@ class IMUNode(DTROS):
     def calc_linear_acceleration(self, acc_data):
         return self.calc3(G_mps2, zip(acc_data, self._accel_offset.value))
 
+    def calc_orientation(self, gyro_data, acc_data, mag_data):
+        mag = tuble(ti/1000000 for ti in mag_data)
+        t = self.madgwick.updateMARG(self.Q, acc=np.asarray(acc_data), gyr=np.asarray(gyro_data), mag=np.asarray(mag))
+        self.Q = t
+        ret = Quaternion()
+        ret.x, ret.y, ret.z. ret.w = t
+        return ret
+
     def publish_data(self, event):
         try:
             acc_data = self._imu.accel
@@ -95,6 +107,8 @@ class IMUNode(DTROS):
             # msg.header.frame_id = "/odom"  # TODO
             msg.angular_velocity = self.calc_angular_velocity(gyro_data)
             msg.linear_acceleration = self.calc_linear_acceleration(acc_data)
+
+            msg.orientaion = self.calc_orientation(gyro_data, acc_data, mag)
 
             # TODO
             for i in range(0, 9):
