@@ -14,7 +14,7 @@ from geometry_msgs.msg import Vector3, Quaternion
 
 G_mps2 = 9.80665  # 1 G in m/s^2
 DEG2RAD = math.pi / 180
-
+NUM_MESURMENTS = 1000
 
 class IMUNotFound(Exception):
     pass
@@ -56,11 +56,44 @@ class IMUNode(DTROS):
             self.logerr(trial_msg("IMU sensor not correctly detected"))
             raise IMUNotFound()
 
+        offset = calibrate()
+        self._ang_vel_offset.value = offset['ang_vel_offset']
+        self._accel_offset.value = offset['accel_offset']
+
         self.pub = rospy.Publisher('~imu_data', Imu, queue_size=10)
         self.timer = rospy.Timer(
             rospy.Duration.from_sec(1.0 / polling_hz),
             self.publish_data,
         )
+
+    def calibrate(self):
+        """
+        Calibrates the imu sensor data.
+        """
+        gyro_totals=[0, 0, 0]
+        acc_totals=[0, 0, 0]
+
+        input('Place the Duckiebot on a level surface, and leave it perfecly still. Press enter when ready. ')
+        for n in range(0, NUM_MESURMENTS):
+            a=self._imu.accel
+            g=self._imu.gyro
+
+            for i in range(0, 3):
+                gyro_totals[i] += g[i] * DEG2RAD
+                acc_totals[i] += a[i] * G
+
+            if n % 10 == 0:
+                self.logdebug('{:4}/{:4}'.format(n + 1, NUM_MESURMENTS))
+            rospy.sleep(0.01)
+
+         gyro_avg = list(map(lambda x: x / NUM_MESURMENTS, gyro_totals))
+         acc_avg = list(map(lambda x: x / NUM_MESURMENTS, acc_totals))
+         acc_avg[2] -= G
+
+         return {
+             'ang_vel_offset': gyro_avg,
+             'accel_offset': accel_avg
+         }
 
     def calc3(self, const, data_zip_offset):
         """
