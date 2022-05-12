@@ -5,3 +5,12 @@ Jetson.GPIO
 
 # RPi packages
 RPi.GPIO
+
+# ahrs
+ahrs
+
+# Numpy
+numpy
+
+# smbus2
+smbus2

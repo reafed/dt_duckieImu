@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import math
 import time
-from ahrs.filter import Madgwick
+from ahrs.filters import Madgwick
 import numpy as np
 
 import rospy
@@ -30,6 +30,7 @@ class IMUNode(DTROS):
         self._veh = rospy.get_param('~veh')
         i2c_bus = rospy.get_param("~i2c_bus")
         i2c_address = rospy.get_param("~i2c_address")
+        #i2c_address = 0x68
         polling_hz = rospy.get_param("~polling_hz")
 
         self._ang_vel_offset = DTParam(
@@ -86,14 +87,16 @@ class IMUNode(DTROS):
                 self.logdebug('{:4}/{:4}'.format(n + 1, NUM_MESURMENTS))
             rospy.sleep(0.01)
 
-         gyro_avg = list(map(lambda x: x / NUM_MESURMENTS, gyro_totals))
-         acc_avg = list(map(lambda x: x / NUM_MESURMENTS, acc_totals))
-         acc_avg[2] -= G
+        gyro_avg = list(map(lambda x: x / NUM_MESURMENTS, gyro_totals))
+        acc_avg = list(map(lambda x: x / NUM_MESURMENTS, acc_totals))
+        acc_avg[2] -= G
 
-         return {
-             'ang_vel_offset': gyro_avg,
-             'accel_offset': accel_avg
-         }
+        self.logdebug('Calibration done')
+
+        return {
+            'ang_vel_offset': gyro_avg,
+            'accel_offset': accel_avg
+        }
 
     def calc3(self, const, data_zip_offset):
         """

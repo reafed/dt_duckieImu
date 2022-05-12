@@ -2,12 +2,12 @@ from __future__ import print_function
 from __future__ import division
 
 #try:
-#	import smbus2 as smbus
+#	from smbus2 import SMBus as smbus
 #except ImportError:
 #	print('WARNING: Using fake hardware')
 #	from .fakeHW import smbus
 	#from fake_rpi import smbus
-import smbus #as smbus
+import smbus2 as smbus
 
 from time import sleep
 import struct
@@ -76,14 +76,16 @@ class mpu9250(object):
 				GYRO_CONFIG: AK8963_14BIT | AK8963_100HZ
 			}
 		"""
+		print("starting bus. bus = " + str(bus))
 		self.bus = smbus.SMBus(bus)
+		print("bus started")
 
 		# let's double check we have the correct device address
 		self.address = address
 		whoIam = self.read8(self.address, WHO_AM_I)
-		# print('Test')
-		# print(whoIam)
-		# print(DEVICE_ID)
+		print('Test')
+		print(whoIam)
+		print(DEVICE_ID)
 		if whoIam is not DEVICE_ID:
 			raise Exception('MPU9250: init failed to find device')
 
@@ -93,6 +95,7 @@ class mpu9250(object):
 		self.write(self.address, ACCEL_CONFIG, ACCEL_2G)
 		self.write(self.address, GYRO_CONFIG, GYRO_250DPS)
 
+		print("Wrote most of it")
 		# You have to enable the other chips to join the I2C network
 		# then you should see 0x68 and 0x0c from:
 		# sudo i2cdetect -y 1
