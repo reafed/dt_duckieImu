@@ -57,9 +57,9 @@ class IMUNode(DTROS):
             self.logerr(trial_msg("IMU sensor not correctly detected"))
             raise IMUNotFound()
 
-        offset = calibrate()
-        self._ang_vel_offset.value = offset['ang_vel_offset']
-        self._accel_offset.value = offset['accel_offset']
+        self.offset = self.calibrate()
+        #self._ang_vel_offset.value = self.offset['ang_vel_offset']
+        #self._accel_offset.value = self.offset['accel_offset']
 
         self.pub = rospy.Publisher('~imu_data', Imu, queue_size=10)
         self.timer = rospy.Timer(
@@ -74,14 +74,15 @@ class IMUNode(DTROS):
         gyro_totals=[0, 0, 0]
         acc_totals=[0, 0, 0]
 
-        input('Place the Duckiebot on a level surface, and leave it perfecly still. Press enter when ready. ')
+        #input('Place the Duckiebot on a level surface, and leave it perfecly still. Press enter when ready. ')
+        print("Calibatring")
         for n in range(0, NUM_MESURMENTS):
             a=self._imu.accel
             g=self._imu.gyro
 
             for i in range(0, 3):
                 gyro_totals[i] += g[i] * DEG2RAD
-                acc_totals[i] += a[i] * G
+                acc_totals[i] += a[i] * G_mps2
 
             if n % 10 == 0:
                 self.logdebug('{:4}/{:4}'.format(n + 1, NUM_MESURMENTS))
@@ -89,13 +90,13 @@ class IMUNode(DTROS):
 
         gyro_avg = list(map(lambda x: x / NUM_MESURMENTS, gyro_totals))
         acc_avg = list(map(lambda x: x / NUM_MESURMENTS, acc_totals))
-        acc_avg[2] -= G
+        acc_avg[2] -= G_mps2
 
         self.logdebug('Calibration done')
 
         return {
             'ang_vel_offset': gyro_avg,
-            'accel_offset': accel_avg
+            'accel_offset': acc_avg
         }
 
     def calc3(self, const, data_zip_offset):
@@ -110,17 +111,23 @@ class IMUNode(DTROS):
         return ret
 
     def calc_angular_velocity(self, gyro_data):
-        return self.calc3(DEG2RAD, zip(gyro_data, self._ang_vel_offset.value))
+        #return self.calc3(DEG2RAD, zip(gyro_data, self._ang_vel_offset.value))
+        return self.calc3(DEG2RAD, zip(gyro_data, self.offset['ang_vel_offset']))
 
     def calc_linear_acceleration(self, acc_data):
-        return self.calc3(G_mps2, zip(acc_data, self._accel_offset.value))
+        #return self.calc3(G_mps2, zip(acc_data, self._accel_offset.value))
+        return self.calc3(G_mps2, zip(acc_data, self.offset['accel_offset']))
 
     def calc_orientation(self, gyro_data, acc_data, mag_data):
-        mag = tuble(ti/1000000 for ti in mag_data)
-        t = self.madgwick.updateMARG(self.Q, acc=np.asarray(acc_data), gyr=np.asarray(gyro_data), mag=np.asarray(mag))
+        mag = tuple(ti/1000000 for ti in mag_data)
+        acc_data_ar = np.array([acc_data.x, acc_data.y, acc_data.z])
+        gyro_data_ar = np.array([gyro_data.x, gyro_data.y, gyro_data.z])
+
+        t = self.madgwick.updateMARG(self.Q, acc=acc_data_ar, gyr=gyro_data_ar, mag=np.asarray(mag))
         self.Q = t
+
         ret = Quaternion()
-        ret.x, ret.y, ret.z. ret.w = t
+        ret.x, ret.y, ret.z, ret.w = t
         return ret
 
     def publish_data(self, event):
@@ -144,7 +151,8 @@ class IMUNode(DTROS):
             msg.angular_velocity = self.calc_angular_velocity(gyro_data)
             msg.linear_acceleration = self.calc_linear_acceleration(acc_data)
 
-            msg.orientaion = self.calc_orientation(gyro_data, acc_data, mag)
+            #msg.orientation = self.calc_orientation(gyro_data, acc_data, mag)
+            msg.orientation = self.calc_orientation(msg.angular_velocity, msg.linear_acceleration, mag)
 
             # TODO
             for i in range(0, 9):
