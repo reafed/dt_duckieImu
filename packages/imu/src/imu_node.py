@@ -118,12 +118,13 @@ class IMUNode(DTROS):
         #return self.calc3(G_mps2, zip(acc_data, self._accel_offset.value))
         return self.calc3(G_mps2, zip(acc_data, self.offset['accel_offset']))
 
-    def calc_orientation(self, gyro_data, acc_data, mag_data):
-        mag = tuple(ti/1000000 for ti in mag_data)
+    def calc_orientation(self, gyro_data, acc_data):
+        #mag = tuple(ti/1000000 for ti in mag_data)
         acc_data_ar = np.array([acc_data.x, acc_data.y, acc_data.z])
         gyro_data_ar = np.array([gyro_data.x, gyro_data.y, gyro_data.z])
 
-        t = self.madgwick.updateMARG(self.Q, acc=acc_data_ar, gyr=gyro_data_ar, mag=np.asarray(mag))
+        #t = self.madgwick.updateMARG(self.Q, acc=acc_data_ar, gyr=gyro_data_ar, mag=np.asarray(mag))
+        t = self.madgwick.updateIMU(self.Q, acc=acc_data_ar, gyr=gyro_data_ar)
         self.Q = t
 
         ret = Quaternion()
@@ -152,7 +153,7 @@ class IMUNode(DTROS):
             msg.linear_acceleration = self.calc_linear_acceleration(acc_data)
 
             #msg.orientation = self.calc_orientation(gyro_data, acc_data, mag)
-            msg.orientation = self.calc_orientation(msg.angular_velocity, msg.linear_acceleration, mag)
+            msg.orientation = self.calc_orientation(msg.angular_velocity, msg.linear_acceleration)
 
             # TODO
             for i in range(0, 9):
